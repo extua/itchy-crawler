@@ -25,14 +25,25 @@ async fn main() {
                 fs::write("state", url.0.to_string()).unwrap();
 
                 println!("downloading {}", url.1);
-                let response: (String, bool) = download_page(url.1).await;
-
-                if response.1 == true {
+                let page_response: (String, bool) = download_page(&url.1).await;
+                if page_response.1 == true {
                     delay_ratchet += rng.random_range(5..20)
                 }
-
-                sleep(Duration::from_millis(delay));
                 println!("sleeping {delay}ms");
+                sleep(Duration::from_millis(delay));
+
+                let json_url: String = format!("{}/data.json", &url.1);
+                println!("downloading {}", json_url);
+                let json_response: (String, bool) = download_page(&json_url).await;
+                if json_response.1 == true {
+                    delay_ratchet += rng.random_range(5..20)
+                }
+                println!("sleeping {delay}ms");
+                sleep(Duration::from_millis(delay));
+
+                // at this point, we have two resources, a page, and some json
+                // parse to a struct?
+
             } else {
                 continue;
             }
@@ -51,7 +62,7 @@ where
 fn create_client() -> Client {
     const APP_USER_AGENT: &str = concat!(
         env!("CARGO_PKG_NAME"),
-        " - Bodleian Libraries Oxford pierre.marshall@bodleian.ox.ac.uk"
+        " Bodleian Libraries Oxford pierre.marshall@bodleian.ox.ac.uk"
     );
     reqwest::Client::builder()
         .user_agent(APP_USER_AGENT)
@@ -60,7 +71,7 @@ fn create_client() -> Client {
         .unwrap()
 }
 
-async fn download_page(url: String) -> (String, bool) {
+async fn download_page(url: &String) -> (String, bool) {
     const RETRY_SCALE: [u64; 13] = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377];
 
     let mut retries: usize = 0;
@@ -68,7 +79,7 @@ async fn download_page(url: String) -> (String, bool) {
     let client: Client = create_client();
 
     let response_from_retry: Response = loop {
-        match client.get(&url).send().await {
+        match client.get(url).send().await {
             // if response is successful, return the response!
             Ok(resp) if resp.status().is_success() => break resp,
             // if status is 429, back off and retry
