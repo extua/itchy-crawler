@@ -15,7 +15,6 @@ async fn main() {
         let mut delay_ratchet: u64 = 20u64;
 
         for url in urls.map_while(Result::ok).enumerate() {
-            
             let delay: u64 = rng.random_range(delay_ratchet..(delay_ratchet + 20));
             // maintain state by writing line number to file
             let state: usize = fs::read_to_string("state").unwrap().parse().unwrap();
@@ -26,24 +25,24 @@ async fn main() {
 
                 println!("downloading {}", url.1);
                 let page_response: (String, bool) = download_page(&url.1).await;
-                if page_response.1 == true {
+                if page_response.1 {
                     delay_ratchet += rng.random_range(5..20)
                 }
+                let page_file_path = format!("html/{state}.html");
+                fs::write(page_file_path, page_response.0).unwrap();
                 println!("sleeping {delay}ms");
                 sleep(Duration::from_millis(delay));
 
                 let json_url: String = format!("{}/data.json", &url.1);
-                println!("downloading {}", json_url);
+                println!("downloading {json_url}");
                 let json_response: (String, bool) = download_page(&json_url).await;
-                if json_response.1 == true {
+                if json_response.1 {
                     delay_ratchet += rng.random_range(5..20)
                 }
+                let json_file_path = format!("json/{state}.json");
+                fs::write(json_file_path, json_response.0).unwrap();
                 println!("sleeping {delay}ms");
                 sleep(Duration::from_millis(delay));
-
-                // at this point, we have two resources, a page, and some json
-                // parse to a struct?
-
             } else {
                 continue;
             }
